@@ -1,0 +1,11 @@
+/* NConf style overrides for bootstrap */
+
+/* Fieldset & legend */
+fieldset.ui-widget-content legend {
+  font-size: 14px;
+  line-height: 18px;
+  margin-bottom: 0;
+  margin-left: 5px;
+  width: auto;
+}
+

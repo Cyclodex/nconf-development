@@ -94,6 +94,9 @@ $NConf_PERMISSIONS = new NConf_PERMISSIONS;
     if ( defined('TEMPLATE_DIR') ){
         echo '<link rel="stylesheet" type="text/css" href="design_templates/'.TEMPLATE_DIR.'/new.css">';
         echo '<link rel="stylesheet" type="text/css" href="design_templates/'.TEMPLATE_DIR.'/main.css">';
+        // Bootstrap test
+        //echo '<link rel="stylesheet" type="text/css" href="design_templates/'.TEMPLATE_DIR.'/bootstrap.css">';
+        //echo '<link rel="stylesheet" type="text/css" href="design_templates/'.TEMPLATE_DIR.'/bootstrap_nconf.css">';
         echo '<link rel="shortcut icon" href="design_templates/'.TEMPLATE_DIR.'/favicon.ico">';
     }
     ?>
@@ -125,6 +128,7 @@ $NConf_PERMISSIONS = new NConf_PERMISSIONS;
             <script src="include/js/jquery_plugins/jquery.nconf_tooltip.js" type="text/javascript"></script>
             <script src="include/js/jquery_plugins/jquery.nconf_accordion_list.js" type="text/javascript"></script>
             <script src="include/js/jquery_plugins/jquery.nconf_head.js" type="text/javascript"></script>
+            <script src="include/js/jquery_plugins/jquery.nconf_tabs.js" type="text/javascript"></script>
             ';
 
         // jquery theme switcher

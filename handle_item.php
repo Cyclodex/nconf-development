@@ -1,5 +1,8 @@
 <?php
 require_once 'include/head.php';
+// temporary css additions until it will be available for the whole nconf project
+echo '<link rel="stylesheet" type="text/css" href="design_templates/'.TEMPLATE_DIR.'/bootstrap.css">';
+echo '<link rel="stylesheet" type="text/css" href="design_templates/'.TEMPLATE_DIR.'/bootstrap_nconf.css">';
 
 set_page();
 
@@ -8,10 +11,15 @@ set_page();
 <script type="text/javascript">
     $(document).ready(function(){
         $("#loading").hide();
+        
+        //tabs($("fieldset.tabs"));
+        $.nconf_taps($("#tabs > div"));
+        $("#tabs").tabs();
 
         $("#check_command_select").change(function() {
             $("form").find('input[type=submit]').prepend('<input type="hidden" name="check_command_changed" value="true">');
             $("form").find('input[type=submit]').click();
+            //$("form").submit();
         });
 
         // mode for multimodify
@@ -247,11 +255,6 @@ if ( !empty($_GET["id"]) ){
     $form_action = 'add_item_step2.php';
     $item_class = $_GET["item"];
 
-    $class_ID   = db_templates('get_id_of_class', $item_class);
-    if (!$class_ID){
-        NConf_DEBUG::set("This class does not exist", 'ERROR');
-    }
-
     # get id of attr check_command
     $check_command_attr_id = db_templates("get_attr_id", $item_class, "check_command");
     
@@ -260,7 +263,14 @@ if ( !empty($_GET["id"]) ){
     }
 }
 
-if ( empty($item_class) ) $item_class = '';
+if ( empty($item_class) ){
+    $item_class = '';
+}else{
+    $class_ID   = db_templates('get_id_of_class', $item_class);
+    if (!$class_ID){
+        NConf_DEBUG::set("This class does not exist", 'ERROR');
+    }
+}
 NConf_DEBUG::set($handle_action, 'DEBUG', 'Handle action: ');
 NConf_DEBUG::set($item_class, 'DEBUG', 'Handle class: ');
 
@@ -301,7 +311,7 @@ if ($handle_action == "multimodify"){
     }
 
     # output for select attribute
-    $result_array = db_templates("get_attributes_with_bidirectional", $item_class);
+    $result_array = db_templates("get_attributes_with_bidirectional", $class_ID);
 
     echo '<fieldset class="inline ui-widget-content">';
     echo '<legend><b>Select the attribute which you want to modify </b></legend>';
@@ -354,46 +364,46 @@ if(
     ###
     # Form start
     ###
-    echo '<form name="handle_item" action="'.$form_action.'" method="post" onsubmit="multipleSelectOnSubmit()">';
+    echo '<form name="handle_item" action="'.$form_action.'" method="post" onsubmit="multipleSelectOnSubmit()" class="form-horizontal">';
     
-    if ($handle_action == "add"){
-        # add
-        echo '<input name="config_class" type="hidden" value="'.$item_class.'">';
-    }else{
-        # modify / multimodify
-        echo '<input name="HIDDEN_config_class" type="hidden" value="'.$item_class.'">';
-        if ($handle_action == "modify") echo '<input name="HIDDEN_modify_id" type="hidden" value="'.$_GET["id"].'">';
-        if ($handle_action == "multimodify"){
-            echo '<input name="HIDDEN_modify_ids" type="hidden" value="'.$_POST["ids"].'">';
-            echo '<input name="HIDDEN_selected_attr" type="hidden" value="'.$_POST["attr"].'">';
+        if ($handle_action == "add"){
+            # add
+            echo '<input name="config_class" type="hidden" value="'.$item_class.'">';
+        }else{
+            # modify / multimodify
+            echo '<input name="HIDDEN_config_class" type="hidden" value="'.$item_class.'">';
+            if ($handle_action == "modify") echo '<input name="HIDDEN_modify_id" type="hidden" value="'.$_GET["id"].'">';
+            if ($handle_action == "multimodify"){
+                echo '<input name="HIDDEN_modify_ids" type="hidden" value="'.$_POST["ids"].'">';
+                echo '<input name="HIDDEN_selected_attr" type="hidden" value="'.$_POST["attr"].'">';
+            }
         }
-    }
 
 
         //$notification_period_attribute_id = db_templates("get_attr_id", "host", "notification_period");
         //$check_period_attribute_id        = db_templates("get_attr_id", "host", "check_period");
         $contact_groups_attribute_id      = db_templates("get_attr_id", "host", "contact_groups");
-        $class_ID   = db_templates('get_id_of_class', $item_class);
-
+        //$class_ID   = db_templates('get_id_of_class', $item_class);
+    
         NConf_DEBUG::open_group("prepare data");
         
         # bidirectional class check
         if ($handle_action == "multimodify"){
-            $result_array = db_templates("get_attributes_with_bidirectional", $item_class, $_POST["attr"]);
+            $result_array = db_templates("get_attributes_with_bidirectional", $class_ID, $_POST["attr"]);
             # set special Fieldset
             echo '<fieldset class="inline ui-widget-content">';
             echo '<legend><b>New value to write</b></legend>';
         }else{
-            $result_array = db_templates("get_attributes_with_bidirectional", $item_class);
+            $result_array = db_templates("get_attributes_with_bidirectional", $class_ID, NULL, "visible");
         }
         
         NConf_DEBUG::close_group();
-
+    
         if ( count($result_array) == 0){
             // warn if class contains no attrbibutes
             NConf_DEBUG::set('There are no attributes defined for this class.', 'ERROR');
         }
-
+    
         if ( NConf_DEBUG::status('ERROR') ) {
             $content  = NConf_HTML::show_error();
             $content .= "<br><br>";
@@ -403,23 +413,28 @@ if(
                 $link = "index.php";
             }
             $content .= NConf_HTML::back_button($link);
-
+    
             echo NConf_HTML::limit_space($content);
-
+    
             mysql_close($dbh);
             require_once 'include/foot.php';
-
+    
             exit;
-
+    
         }
-
-        // seems not really nice, disabled for new theme
-        //echo '<table border="0" style="table-layout:fixed; width:770px">';
-        echo '<table>';
-
-        # predefine col width
-        echo define_colgroup();
-
+    
+        /*
+         * TABS
+         */
+        $class_has_tabs = db_templates('class_has_tabs', $class_ID);
+        if ($class_has_tabs){
+            echo '<div id="tabs">';
+        }else{
+            echo '<div>';
+        }
+    
+        $html_element = "div";
+    
         foreach ($result_array AS $entry ){
             if( ($handle_action != "modify") AND !empty($entry["predef_value"]) ){
                 # add / multimodify
@@ -427,8 +442,8 @@ if(
                 // debug must be redone with message:
                 NConf_DEBUG::set($entry["predef_value"], 'DEBUG', 'predefined value of '.$entry["attr_name"].' ('.$entry["id_attr"].')');
             }
-
-
+    
+    
             ###
             # check for bidirectional attribute
             ###
@@ -439,42 +454,70 @@ if(
                 $entry["datatype"] = "assign_many";
                 message($debug, '<b>Bidirectional</b> Changed output of bidirectional item from assign_one to assign_many');
             }
-
-
-            # assign_many needs special tr class for setting margin
+    
+            if ($class_has_tabs){
+                // Check if tab id is different than the one before to create tabs
+                if ( !isset($last_tab_id) ){
+                  // start the first tab
+                  echo '<'.$html_element.' id="tabs-'.$entry["id_tab"].'" title="'.$entry["tab_name"].'">';
+                }  
+                if (isset($last_tab_id) AND ($last_tab_id != $entry["id_tab"]) ){
+                  echo '</'.$html_element.'><'.$html_element.' id="tabs-'.$entry["id_tab"].'" title="'.$entry["tab_name"].'">';
+                }
+                // save current tab id for next iteration
+                $last_tab_id = !empty($entry["id_tab"]) ? $entry["id_tab"] : NULL;
+            }
+            
+    
+    
+            # assign_many needs special class for setting margin
+            /* tab-style */
             if($entry["datatype"] == "assign_many"
                 OR $entry["datatype"] == "assign_cust_order" ){
-                //echo '<tr class="assign_many">'.$command_args;
-                echo '<tr class="assign_many">';
+                //echo '<div class="assign_many">'.$command_args;
+                echo '<div class="control-group assign_many">';
             }else{
-                //echo '<tr>'.$command_args;
-                echo '<tr>';
+                //echo '<div>'.$command_args;
+                //echo '<div>';
+                /*
+                 * 
+                 */
+                // Group around input field
+                echo '<div class="control-group';
+                /*if ($entry["mandatory"] == "yes"){
+                  echo " error";
+                }*/
+                echo '">';
             }
-
             
             # set special Fieldset for check_params
             if ( ($item_class == "service" OR $item_class == "advanced-service") AND $entry["attr_name"] == "check_params"){
                 #do nothing here, print title later if really needed
             }else{
-                echo '<td class="middle">'.$entry["friendly_name"].'</td>';
+                echo '<label class="control-label" for="'.$entry["attr_name"].'">'.$entry["friendly_name"].'</label>';
             }
-
+    
             # check if items being displayed are "services"
             if(isset($entry["fk_show_class_items"])){
                 $srvquery = mysql_query('SELECT config_class FROM ConfigClasses WHERE id_class='.$entry["fk_show_class_items"]);
                 $srv = mysql_fetch_assoc($srvquery);
             }
-
-
-
+    
+    
+            // group around
+            // but not yet for this special case here:
+            if (!( ($item_class == "service" OR $item_class == "advanced-service") AND $entry["attr_name"] == "check_params") ){
+              echo '<div class="controls docs-input-sizes">';
+            }
+    
             ### process "text" fields
             if ($entry["datatype"] == "text"){
                 # check special case for check_params
                 if ( ($item_class == "service" OR $item_class == "advanced-service") AND $entry["attr_name"] == "check_params"){
                     # check_param stuff
-
+    
                     NConf_DEBUG::open_group("params for check command (service parameters)");
-
+    
                     # get id of check_command
                     if ($handle_action == "add"){
                         if ( !empty($_SESSION["cache"]["handle"][$check_command_attr_id][0]) ){
@@ -519,26 +562,27 @@ if(
                         $command_param_count = $most_counts;
                         
                     }
-
+    
                     if ($command_param_count == "0"){
                             # no command syntax if param count == 0
                             # display no attribute but value of hidden attribute must be "!"
+                            /* TODO: tabstyle: not yet checked here */
                             echo '
-                                    <td>
-                                        <input name="'.$entry["id_attr"].'" type="hidden" value="!">
-                                    </td>';
-
+                                        <input id="'.$entry["attr_name"].'" class="span3" name="'.$entry["id_attr"].'" name="'.$entry["id_attr"].'" type="hidden" value="!">
+                                    ';
+    
                             # continue with next attribute (normaly these are bidirectional ones, param count is the last of normal attributes)
                             # but this will ignore all the next text/select etc logic
-                            echo '</tr>';
+                            echo '</div>';
                             continue;
-
+    
                     }elseif( $command_param_count  > 0 ){
-                        echo '<td class="middle">'.$entry["friendly_name"].'</td>';
-                        echo '<td colspan=3>';
+                        echo '<label class="middle">'.$entry["friendly_name"].'</label>';
+                        // group around
+                        echo '<div class="controls docs-input-sizes">';
                         echo '<fieldset class="inline ui-widget-content">';
                         echo '<legend><b>service parameters</b></legend>';
-
+    
                         if (  isset( $_SESSION["cache"]["handle"][$entry["id_attr"]] )
                                 AND empty( $_SESSION["cache"]["handle"][$entry["id_attr"]]["check_command_changed"] )
                            ){
@@ -551,7 +595,7 @@ if(
                         
                         # command
                         $commands_split = explode("!", $value);
-
+    
                         #
                         # Handle  \!  in commands
                         # Nagios allows to put \! in commands, so do not split that
@@ -571,8 +615,8 @@ if(
                                 $command = '';
                             }
                         }
-
-
+    
+    
                         # get syntax of arguments
                         # Get command syntax
                         $command_query = 'SELECT attr_value FROM ConfigValues,ConfigAttrs
@@ -603,22 +647,22 @@ if(
                             echo '</tr>';
                         }
                         echo '</table>';
-
+    
                         # unset $command_param_count for next loop
                         unset($command_param_count);
                         NConf_DEBUG::close_group();
-
+    
                     }
                     #close special td and fieldset
-                    echo '</td></fieldset>';
-
-
-
+                    echo '</div></fieldset>';
+    
+    
+    
                 }else{
                     ###
                     # normal text case
                     ###
-
+    
                     if (  ( isset($_SESSION["cache"]["handle"][$entry["id_attr"]]) )  ){
                         $value = $_SESSION["cache"]["handle"][$entry["id_attr"]];
                     }elseif ( isset($item_data[$entry["id_attr"]]) ){
@@ -630,17 +674,13 @@ if(
                     //special auto complete
                     //if ($entry["attr_name"] == "email" OR $entry["attr_name"] == "pager"){
                     if ( preg_match("/[email|pager]/", $entry["attr_name"]) ){
-                        echo '<td>
-                                <input id="'.$entry["attr_name"].'" name="'.$entry["id_attr"].'" type=text maxlength='.$entry["max_length"].' value="'.htmlspecialchars($value).'">
-                              </td>';
+                        echo '<input id="'.$entry["attr_name"].'" class="span3" name="'.$entry["id_attr"].'" type=text maxlength='.$entry["max_length"].' value="'.htmlspecialchars($value).'">';
                     }else{
-                        echo '<td>
-                                <input name="'.$entry["id_attr"].'" type=text maxlength='.$entry["max_length"].' value="'.htmlspecialchars($value).'">
-                              </td>';
+                        echo '<input id="'.$entry["attr_name"].'" class="span3" name="'.$entry["id_attr"].'" type=text maxlength='.$entry["max_length"].' value="'.htmlspecialchars($value).'">';
                     }
-
+    
                 }
-
+    
             # process "password" fields
             }elseif($entry["datatype"] == "password"){
                 if (  ( isset($_SESSION["cache"]["handle"][$entry["id_attr"]]) )  ){
@@ -651,34 +691,32 @@ if(
                 }else{
                     $value = "";
                 }
-                echo '<td>
-                        <input name="'.$entry["id_attr"].'" type=password maxlength='.$entry["max_length"].' value="'.htmlspecialchars($value).'">
-                      </td>';
-
-
+                echo '<input id="'.$entry["attr_name"].'" class="span3" name="'.$entry["id_attr"].'" type=password maxlength='.$entry["max_length"].' value="'.htmlspecialchars($value).'">';
+    
+    
             # process "select" fields
             }elseif($entry["datatype"] == "select"){
                 // ADMIN users only
                 if (  ($_SESSION["group"] != "admin") AND ( in_array($entry["attr_name"], $ADMIN_ONLY) )  ){
-                    echo '<input name="'.$entry["id_attr"].'" type="HIDDEN" value="'.$entry["predef_value"].'">';
+                    echo '<input  name="'.$entry["id_attr"].'" type="HIDDEN" value="'.$entry["predef_value"].'">';
                 }
-
+    
                 $dropdown = preg_split("/".SELECT_VALUE_SEPARATOR."/", $entry["poss_values"]);
-                echo '<td><select name="'.$entry["id_attr"].'" size="0"';
-
+                echo '<select id="'.$entry["attr_name"].'" name="'.$entry["id_attr"].'" size="0"';
+    
                 // ADMIN users only
                 if (  ($_SESSION["group"] != "admin") AND ( in_array($entry["attr_name"], $ADMIN_ONLY) )  ){
                     echo " DISABLED";
                 }
-
+    
                 echo '>';
                 
                 if ($entry["mandatory"] == "no"){
                     echo '<option value="">'.SELECT_EMPTY_FIELD.'</option>';
                 }
-
+    
                 foreach ($dropdown as $menu){
-
+    
                     echo "<option";
                     if ( isset($_SESSION["cache"]["handle"][$entry["id_attr"]]) ){
                         if ( $menu == $_SESSION["cache"]["handle"][$entry["id_attr"]] ){
@@ -689,8 +727,8 @@ if(
                     }
                     echo ">$menu</option>";
                 }
-                echo "</select></td>";
-
+                echo "</select>";
+    
             # process "assign_one" fields
             }elseif($entry["datatype"] == "assign_one"){
                 if ($srv["config_class"] == "service"){
@@ -724,16 +762,16 @@ if(
                                                 ORDER BY attr_value';
                 }
                 $result2 = db_handler($query2, "result", "assign_one");
-
+    
                 if ($handle_action == "add" AND ($item_class == "service" OR $item_class == "advanced-service") AND $entry["id_attr"] == $check_command_attr_id){
                     # special for check_command
                     $check_command_first_id = db_handler($query2.' LIMIT 1', "getOne", "get id of first checkcommand for check params / arguments");
-                    echo '<td><select id="check_command_select" name="'.$entry["id_attr"].'[]">';
+                    echo '<select id="check_command_select" name="'.$entry["id_attr"].'[]">';
                 }elseif($handle_action == "modify" AND ($item_class == "service" OR $item_class == "advanced-service") AND ($entry["id_attr"] == $check_command_attr_id OR $entry["id_attr"] == $host_name_attr_id) ){
                     # modify service should have disabled check_command and hostname
-                    echo '<td><select name="'.$entry["id_attr"].'[]" disabled=disabled>';
+                    echo '<select id="'.$entry["attr_name"].'" name="'.$entry["id_attr"].'[]" disabled=disabled>';
                 }else{
-                    echo '<td><select name="'.$entry["id_attr"].'[]">';
+                    echo '<select id="'.$entry["attr_name"].'" name="'.$entry["id_attr"].'[]">';
                 }
                 
                 if ($entry["mandatory"] == "no"){
@@ -742,7 +780,7 @@ if(
                 while($menu2 = mysql_fetch_assoc($result2)){
                 //NConf_DEBUG::set($menu2["id_item"].'+++'.$menu2["attr_value"], 'DEBUG', "id attr ".$entry["id_attr"]." : value @ itemdata(idattr)".$item_data[$entry["id_attr"]]);
                 //NConf_DEBUG::set(NConf_HTML::swap_content($item_data, "hmmm"), 'DEBUG', "hmmm");
-
+    
                     echo '<option value='.$menu2["id_item"];
                     if ( isset($_SESSION["cache"]["handle"][$entry["id_attr"]]) ) {
                             if ( $_SESSION["cache"]["handle"][$entry["id_attr"]][0] == $menu2["id_item"] ){
@@ -757,7 +795,7 @@ if(
                             }else{
                                 if ($menu2["attr_value"] == $entry["predef_value"]) echo ' SELECTED';
                             }
-
+    
                         }else{
                             # modify
                             if( isset($item_data2[$entry["id_attr"]][$menu2["id_item"]]) ) {
@@ -765,14 +803,14 @@ if(
                             }
                         }
                     }
-
+    
                     if ($srv["config_class"] == "service"){
                         echo '>'.$menu2["hostname"].': '.$menu2["attr_value"].'</option>';
                     }else{
                         echo '>'.$menu2["attr_value"].'</option>';
                     }
                 }
-                echo '</select></td>';
+                echo '</select>';
             # process "assign_many" fields
             }elseif($entry["datatype"] == "assign_many"){
                 if ($srv["config_class"] == "service"){
@@ -846,9 +884,9 @@ if(
                                     ORDER BY attr_value';
                     }
                 }
-
+    
                 $result2 = db_handler($query2, "result", "assign_many");
-                echo '<td colspan=3><select id="fromBox_'.$entry["id_attr"].'" name="from_'.$entry["id_attr"].'[]" style="'.CSS_SELECT_MULTI.'" multiple ';
+                echo '<select id="fromBox_'.$entry["id_attr"].'" name="from_'.$entry["id_attr"].'[]" style="'.CSS_SELECT_MULTI.'" multiple ';
                     /*# Load ajax info for PRIO's
                     if ($entry["id_attr"] == $contact_groups_attribute_id){
                         echo ' onmouseover="attachInfo(this, \'contacts\')"';
@@ -874,7 +912,7 @@ if(
                                     $selected_items[] = $menu2;
                                     continue;
                                 }
-
+    
                             }
                         }else{
                             # modify
@@ -885,11 +923,11 @@ if(
                                 }
                             }
                         }
-
+    
                     }
-
+    
                     echo '<option value='.$menu2["id_item"];
-
+    
                     if ($srv["config_class"] == "service"){
                         echo '>'.$menu2["hostname"].': '.$menu2["attr_value"].'</option>';
                     }else{
@@ -897,7 +935,7 @@ if(
                     }
                 }
                 echo '</select>';
-
+    
                 # fill "selected items" with session or predefiend data
                 echo '<select multiple name="'.$entry["id_attr"].'[]" id="toBox_'.$entry["id_attr"].'"';
                     /*# Load ajax info for PRIO's
@@ -911,9 +949,9 @@ if(
                     if ($entry["id_attr"] == $contact_groups_attribute_id){
                         echo ' onmouseover="getText(this, \'contacts\')"';
                     }*/
-
+    
                     // END of SELECTED
-
+    
                     if ($srv["config_class"] == "service"){
                         echo '>'.$selected_menu["hostname"].': '.$selected_menu["attr_value"].'</option>';
                     }
@@ -931,13 +969,9 @@ if(
                 </script>
                 ';
                 
-
-                echo '</td>';
-
-
             # process "assign_cust_order" fields
             }elseif($entry["datatype"] == "assign_cust_order"){
-
+    
                 if ($srv["config_class"] == "service"){
                     if ($handle_action != "modify"){
                         # add / multimodify
@@ -1009,13 +1043,13 @@ if(
                                     ORDER BY attr_value';
                     }
                 }
-
+    
                 $result2 = db_handler($query2, "result", "assign_cust_order");
                 
                 # split predef value
                 $predef_value = preg_split("/".SELECT_VALUE_SEPARATOR."/", $entry["predef_value"]);
                 $selected_items = array();
-
+    
                 # generate base array
                 $base_array = array();
                 $search_array = array();
@@ -1024,7 +1058,7 @@ if(
                     # we need a simpler array for searching when using predef_value:
                     $search_array[$entry_row["id_item"]] = $entry_row["attr_value"];
                 }
-
+    
                 if ( isset($_SESSION["cache"]["handle"][$entry["id_attr"]]) ) {
                     if ( isset($_SESSION["cache"]["handle"][$entry["id_attr"]]) ) {
                         foreach ($_SESSION["cache"]["handle"][$entry["id_attr"]] as $key => $value){
@@ -1048,7 +1082,7 @@ if(
                                 }
                             }
                         }
-
+    
                     }else{
                         # modify
                         # load selected items, prepare arrays
@@ -1061,11 +1095,11 @@ if(
                             }
                         }
                     }
-
+    
                 }
-
+    
                 # generate base options
-                echo '<td colspan=3><select id="fromBox_'.$entry["id_attr"].'" name="from_'.$entry["id_attr"].'[]" style="'.CSS_SELECT_MULTI.'" multiple ';
+                echo '<select id="fromBox_'.$entry["id_attr"].'" name="from_'.$entry["id_attr"].'[]" style="'.CSS_SELECT_MULTI.'" multiple ';
                     /*# Load ajax info for PRIO's
                     if ($entry["id_attr"] == $contact_groups_attribute_id){
                         echo ' onmouseover="attachInfo(this, \'contacts\')"';
@@ -1073,7 +1107,7 @@ if(
                 echo '>';
                 foreach($base_array as $menu2){
                     echo '<option value='.$menu2["id_item"];
-
+    
                     if ($srv["config_class"] == "service"){
                         echo '>'.$menu2["hostname"].': '.$menu2["attr_value"].'</option>';
                     }else{
@@ -1081,7 +1115,7 @@ if(
                     }
                 }
                 echo '</select>';
-
+    
                 # fill "selected items" with session or predefiend data
                 echo '<select multiple name="'.$entry["id_attr"].'[]" id="toBox_'.$entry["id_attr"].'"';
                     /*# Load ajax info for PRIO's
@@ -1095,9 +1129,9 @@ if(
                     if ($entry["id_attr"] == $contact_groups_attribute_id){
                         echo ' onmouseover="getText(this, \'contacts\')"';
                     }*/
-
+    
                     // END of SELECTED
-
+    
                     if ($srv["config_class"] == "service"){
                         echo '>'.$selected_menu["hostname"].': '.$selected_menu["attr_value"].'</option>';
                     }
@@ -1115,41 +1149,33 @@ if(
                 </script>
                 ';
                 
-
-                echo '</td>';
-
-
             }
-
-
-
-
+    
+    
+    
             # display "*" for mandatory fields
-            echo '<td class="mark_as_mandatory">';
-                if ($entry["mandatory"] == "yes"){
-                    if ( ($entry["datatype"] == "assign_many") OR ($entry["datatype"] == "assign_cust_order") ) echo '<br>';
-                    echo '*';
-                }else{
-                    echo '&nbsp;';
-                }
-            echo '</td>';
-
+            echo '<span class="help-inline mark_as_mandatory">';
+            if ($entry["mandatory"] == "yes"){
+              echo '*';
+            }
+            echo '</span>';
+            
+            
             # display attr descripton
-            echo '<td valign="top" class="desc middle"';
-                if ( ($entry["datatype"] != "assign_many") AND ($entry["datatype"] != "assign_cust_order") ) echo 'colspan=3';
-                echo '>';
-                if ( !empty($entry["description"]) ){
-                    echo $entry["description"];
-                }else{
-                    echo '&nbsp;';
-                }
-                echo '</td>';
-
-
-
-
-            echo "</tr>\n";
-
+            if ( !empty($entry["description"]) ){
+              echo '<span class="help-inline">' . $entry["description"] . '</span>';
+            }
+            
+            
+            // End of group around input
+            if (!( ($item_class == "service" OR $item_class == "advanced-service") AND $entry["attr_name"] == "check_params") ){
+              echo '</div>';
+            }
+            
+            
+            // end of an element / control-group row
+            echo '</'.$html_element.'>';
+    
             // DISABLE SUBMIT IF USER WANTS MODIFY AN ADMIN ACOUNT
             if ( ($item_class == "contact") AND ($_SESSION["group"] != "admin")
             AND ( $entry["attr_name"] == "nc_permission" AND
@@ -1159,33 +1185,35 @@ if(
                 echo '<input type="hidden" name="deny_modification" value="TRUE">';
                 message($info, TXT_SUBMIT_DISABLED4USER, "red");
             }
-
+    
             // Take ID from nc_permission for check in write2db script (if user tries to hack)
             if ($entry["attr_name"] == "nc_permission"){
                 echo '<input type="hidden" name="ID_nc_permission" value="'.$entry["id_attr"].'">';
             }
-
-
+    
+    
         } // END of while
-
-#########
-
-        echo '</table>';
-
-
+    
+        #########
+    
+        // close element
+        echo '</div>';
+    
         # close fieldset on multimodify        
         if ($handle_action == "multimodify"){
             echo '</fieldset>';
         }
         echo '<br><br>';
         
-
+        // Close tabbed view
+        echo '</div>';
+    
         # some add item specific
         if ($handle_action == "add"){
             # Tell the Session, send db query is ok (we are coming from formular)
             $_SESSION["submited"] = "yes";
         }
-
+    
         if ( isset($deny_modification) AND ($deny_modification == TRUE) ){
             // DENIED
             echo '<div id=buttons>';
@@ -1201,56 +1229,56 @@ if(
             echo ' <input type="button" value="Reset" align="middle" onclick="location.reload(true);">';
             echo '</div>';
         }
-
+    
         ###
         # multimodify, show on which elements it will write
         ###
         if ( $handle_action == "multimodify" ){
-            # Displays info part if available
-            if ( !empty($warning_check_command_arguments) ){
-                echo "<br>";
-                echo NConf_HTML::limit_space(
-                    NConf_HTML::show_highlight("Attention", $warning_check_command_arguments )
-                    );
-            }
-
-            # add hidden title for mode change on assign_many's (replace or add)
-            $content = '<h2 id="mode_add_title" style="display: none">Old value(s) will remain unchanged. The selected values will additionally be added to the following item(s):</h2>';
-
-            # handle the size for the information box containing the items it writes on
-            if ( ($entry["datatype"] == "assign_many") OR ($entry["datatype"] == "assign_cust_order") ){
-                $content .= '<div style="overflow: auto; width: 350px; max-height: 235px;">';
-            }else{
-                $content .= '<div style="overflow: auto; width: 350px; max-height: 400px;">';
-            }
-                $content .= '<ul>';
-
-                $array_ids = explode(",", $_POST["ids"]);
-                foreach ($array_ids as $item_ID){
-                    # Title of id
-                    $name = db_templates("naming_attr", $item_ID);
-                    if ($item_class == "service"){
-                        # get host name of service
-                        $hostID   = db_templates("hostID_of_service", $item_ID);
-                        $hostname = db_templates("naming_attr", $hostID);
-                        $name = $hostname.":".$name;
-                    }
-                    if ( !empty($name) OR $name === "0" ){
-                        $content .= "<li>$name</li>";
-                    }
-                }
-                $content .= '</ul>';
-
-            echo '<br>';
-            echo '<div id="info_box">';
-            $title = 'Old value will be overwritten for the following item(s):';
+        # Displays info part if available
+        if ( !empty($warning_check_command_arguments) ){
+            echo "<br>";
             echo NConf_HTML::limit_space(
-                NConf_HTML::show_highlight($title, $content)
+                NConf_HTML::show_highlight("Attention", $warning_check_command_arguments )
                 );
-            echo '</div>';
         }
 
-        echo '</form>';
+        # add hidden title for mode change on assign_many's (replace or add)
+        $content = '<h2 id="mode_add_title" style="display: none">Old value(s) will remain unchanged. The selected values will additionally be added to the following item(s):</h2>';
+
+        # handle the size for the information box containing the items it writes on
+        if ( ($entry["datatype"] == "assign_many") OR ($entry["datatype"] == "assign_cust_order") ){
+            $content .= '<div style="overflow: auto; width: 350px; max-height: 235px;">';
+        }else{
+            $content .= '<div style="overflow: auto; width: 350px; max-height: 400px;">';
+        }
+            $content .= '<ul>';
+
+            $array_ids = explode(",", $_POST["ids"]);
+            foreach ($array_ids as $item_ID){
+                # Title of id
+                $name = db_templates("naming_attr", $item_ID);
+                if ($item_class == "service"){
+                    # get host name of service
+                    $hostID   = db_templates("hostID_of_service", $item_ID);
+                    $hostname = db_templates("naming_attr", $hostID);
+                    $name = $hostname.":".$name;
+                }
+                if ( !empty($name) OR $name === "0" ){
+                    $content .= "<li>$name</li>";
+                }
+            }
+            $content .= '</ul>';
+
+        echo '<br>';
+        echo '<div id="info_box">';
+        $title = 'Old value will be overwritten for the following item(s):';
+        echo NConf_HTML::limit_space(
+            NConf_HTML::show_highlight($title, $content)
+            );
+        echo '</div>';
+    }
+
+    echo '</form>';
 
 }
 

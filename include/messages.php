@@ -37,4 +37,5 @@ define("TXT_NOTHING_FOUND",                             "no items found");
 define("TXT_NOTHING_FOUND_SERVICES_DIRECTLY",           "no services directly linked");
 define("TXT_NOTHING_FOUND_ADVANCED_SERVICES_INHERITED", "no advanced-services inherited");
 
+define("TXT_BIDIRECTIONAL_TAB",     "Adv. linking");
 ?>

@@ -57,7 +57,7 @@
 
 .mark_as_mandatory{
     color: red;
-    width: 20px;
+    width: 5px;
     vertical-align: top;
 }
 
@@ -137,7 +137,7 @@ input[type=text], input[type=password], select, textarea {
 
 
 #buttons input{
-    width: 50px;
+    /*width: 50px;*/
 }
 
 .editor_field{

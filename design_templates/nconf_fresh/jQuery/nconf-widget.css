@@ -22,22 +22,29 @@
     padding-right: 2.1em;
 }
 
+/* I don't like these small button, lets make them bigger again */
+/*
 .ui-button .ui-button-text{
     display: inline;
 }
+*/
 
 input.ui-button{
-    padding: 0;
+    /*padding: 0;*/
 }
 
 
 /* Set the titlebar of boxes smaller than standard */
+/* not anymore 
+ * 
 .ui-dialog .ui-dialog-titlebar { padding: 0 0.5em 0; position: relative;  }
+ */
 
 
 /* error messages */
 .fg-error {
     padding: 0.7em;
+    margin-bottom: 5px;
 }
 .fg-error h2{
     margin-bottom: 5px;
@@ -240,3 +247,35 @@ select option.ui-state-error.ui-state-error.highlight {
     border-style: none;
 }
 
+/* sortable table rows */
+.handle {
+  cursor: move;
+}
+
+#reorder_form div.handle {
+  height: 20px;
+  margin: 0 auto;
+  width: 25px;
+}
+
+#tabs_sortable > li {
+  list-style: none outside none;
+  margin-top: 20px;
+}
+
+#tabs_sortable > li > h3{
+  margin-top: 0px;
+}
+
+.fg_tab {
+    display: inline-block;
+    margin-bottom: -1px;
+    padding: 5px 10px;
+}
+
+table.ui-nconf-table.ui-sortable > tbody > tr > td > div.table_text {
+  padding-top: 5px;
+}
+table.ui-nconf-table.ui-sortable > tbody > tr > td > div.table_icon {
+  padding-top: 4px;
+}

@@ -30,13 +30,14 @@ if ( !empty($_REQUEST["module_file"]) AND !empty($_REQUEST["ajax_file"]) ){
         # AJAX file load
         $type       = 'ajax';
         $file_path  = $_REQUEST["ajax_file"];
-        $debug      = ( !empty($_REQUEST["debug"]) AND DEBUG_MODE == 1 ) ?  $_REQUEST["debug"] : 'no';
+        # Don't check for the DEBUG variable because sometimes we need at least error feedback
+        $debug      = ( !empty($_REQUEST["debug"]) ) ?  $_REQUEST["debug"] : 'no';
         $ajax       = 'yes';
         # if file location is JSON, do not print other code (jQuery helpers won't work )
         $json       = ( preg_match( '/^json\//', $_REQUEST["ajax_file"]) ) ? 'yes' : 'no';
 
         # if username is set, save it for history_add etc.
-        # bacause we are called with ajax here, we do not know the $_SESSION vars from the application...
+        # because we are called with ajax here, we do not know the $_SESSION vars from the application...
         if ( !empty($_REQUEST["username"]) ){
             $_SESSION["userinfos"]["username"] = $_REQUEST["username"];
         }else{
@@ -74,15 +75,15 @@ if ( !empty($_REQUEST["module_file"]) AND !empty($_REQUEST["ajax_file"]) ){
 if ($debug == 'yes' AND $json == 'no'){
         $title = 'Load file "'.$file_path.'" @ '.date("H:i:s");
 
-        // set ERROR
+        // set ERROR message
         if ( NConf_DEBUG::status('ERROR') ){
             echo '<div id="ajax_error">';
             echo NConf_DEBUG::show_debug('ERROR', TRUE);
             echo '</div>';
         }
 
-        // set DEBUG
-        if ( NConf_DEBUG::status('DEBUG') ){
+        // set DEBUG on if DEBUG is enabled
+        if ( NConf_DEBUG::status('DEBUG') AND DEBUG_MODE == 1 ){
             echo '<div id="ajax_debug">';
             echo NConf_HTML::swap_content( NConf_DEBUG::show_debug('DEBUG', TRUE), $title, FALSE, FALSE, 'color_list3' );
             echo '</div>';

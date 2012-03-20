@@ -1,6 +1,188 @@
 <?php
 require_once 'include/head.php';
 
+?>
+<!-- jQuery part -->
+<script type="text/javascript">
+    $(document).ready(function(){
+        /* Sortable tabs */
+        $("#tabs_sortable").sortable({
+          update: function(event, ui) {
+            $("#reorder_info").show("slow");
+          },
+          placeholder: "ui-state-highlight",
+          forcePlaceholderSize: true,
+          forceHelperSize: true,
+          revert: true,
+          items: "li",
+          handle: "a.handle",
+          sort: function(event, ui) {
+                // change the height of the placeholder according to the moving tab
+                ui.placeholder.height($("li.ui-sortable-helper").height());
+            }
+        });
+       /* sortable attributes */
+        $("#reorder_form table.sortable").sortable({
+          items: 'tbody > tr',
+          receive: function(e, ui){
+            $(this).find("tbody").append(ui.item);   
+          },
+          update: function(event, ui) {
+            $("#reorder_info").show("slow");
+          },
+          placeholder: "ui-state-highlight",
+          handle: 'div.handle',
+          forcePlaceholderSize: true,
+          revert: true,
+          connectWith: "#reorder_form table.sortable"
+        });
+        
+        /* save reordering */
+        $("#reorder").click( function() {
+          $.post("call_file.php?ajax_file=tab_reorder.php&debug=yes", $("#reorder_form").serialize()
+          , function(data){
+              // this will move the debug information to current page
+              $(data).nconf_ajax_debug();
+              var service_id = $(data).filter("#clone_success").html();
+              $(data).filter("#save_success").appendTo( $("#reordered_info_feedback") );
+              $("#reorder_info").hide("slow");
+              $(data).filter("#save_failed").appendTo( $("#reordered_info_feedback") );
+          });
+          return false;
+        });
+        
+        
+        /* DIALOG */
+        var tab_title_input = $("#tab_title");
+    
+        // modal dialog init: custom buttons and a "close" callback reseting the form
+        // make a copy for the modify, its the same as add with some differences
+        var $dialog = $( "#dialog" ).dialog({
+          autoOpen: false,
+          title: 'Add Tab',
+          modal: true,
+          width: "350",
+          buttons: {
+            Add: function() {
+              handleTab( $("#tab_add").serialize() );
+            },
+            Cancel: function() {
+              $( this ).dialog( "close" );
+            }
+          },
+          open: function() {
+            tab_title_input.focus();
+          },
+          close: function(test) {
+            var Form = $( "form", $dialog );
+            $( "form", $dialog )[0].reset();
+            $( ".modal_feedback_area", $dialog ).empty();
+          }
+        });
+        // Update tab
+        var $modifyDialog = $( "#modifydialog" ).dialog({
+          autoOpen: false,
+          title: 'Modify Tab',
+          modal: true,
+          width: "350",
+          buttons: {
+            Delete: function() {
+              $("#action").val("delete");
+              handleTab( $("#tab_update > input:hidden").serialize() );
+            },
+            Cancel: function() {
+              $( this ).dialog( "close" );
+            },
+            Update: function() {
+              $("#action").val("modify");
+              handleTab( $("#tab_update").serialize() );
+            }
+          },
+          open: function() {
+            tab_title_input.focus();
+          },
+          close: function() {
+            var modifyForm = $( "form", $modifyDialog );
+            $( "form", $modifyDialog )[0].reset();
+            $( ".modal_feedback_area", $modifyDialog ).empty();
+          }
+        });
+        
+        /* prevent sending form with ENTER */
+        $("form").submit(function() {
+          return false;
+        })
+    
+        // add new tab or update existing tab
+        // function will call a file over AJAX which saves the data into the DB
+        function handleTab(data) {
+          var modal_feedback_area = "div.ui-dialog-content:visible .modal_feedback_area";
+          $(modal_feedback_area).children().hide("drop", 'slow', function() {
+              $(this).remove();
+          });
+          $.post("call_file.php?ajax_file=tab_handle.php&debug=yes", data
+          , function(data){
+              $(data).filter("#ajax_error").appendTo( $(modal_feedback_area) ).addClass("ui-state-error ui-corner-all fg-error").hide().show("slow");
+              $(modal_feedback_area).show("slow");
+              // this will move the debug information to current page
+              $(data).nconf_ajax_debug();
+              $(data).filter("#save_success").appendTo( $(modal_feedback_area) ).addClass("ui-state-highlight ui-corner-all fg-error");
+              // check if it there were no errors before reloading
+              if (!$(data).is("#ajax_error")){
+                location.reload();
+              }
+          });
+        }
+    
+        /* TAB ADD */
+        $( "#add_tab" )
+          .button()
+          .click(function() {
+            $dialog.dialog( "open" );
+          });
+        
+        /* TAB MODIFY */
+        $("#tabs_sortable .tab_modify").click(function() {
+          var tab_id = $(this).parent().next('input:hidden[name="tab_ordering[]"]').val();
+          $.post("call_file.php?ajax_file=tab_load.php&debug=yes", { id: tab_id}
+          , function(data){
+              var tab_info = jQuery.parseJSON($(data).filter("#load_data").html());
+              
+              $(data).filter("#ajax_error").appendTo( $("#modify_modal_feedback_area") ).addClass("ui-state-error ui-corner-all fg-error").hide().show("slow");
+              $("#modify_modal_feedback_area").show("slow");
+              // this will move the debug information to current page
+              $(data).nconf_ajax_debug();
+              $(data).filter("#save_success").appendTo( $("#modify_modal_feedback_area") ).addClass("ui-state-highlight ui-corner-all fg-error");
+              
+              // add tab id info
+              $("#tab_id").val(tab_info.id_tab);
+              // fill the input fields with loaded data
+              $("#tab_name_update").val(tab_info.tab_name);
+              $modifyDialog.dialog( "option", "title", 'Modify Tab "' + tab_info.tab_name + '"' );
+              $("#tab_description_update").val(tab_info.description);
+              if (tab_info.visible == "no"){
+                $("#tab_visible_update").removeAttr("checked");
+              }else{
+                $("#tab_visible_update").attr('checked','checked');
+              }
+              
+              // change title of dialog
+              $modifyDialog.dialog( "open" );
+          });
+        });
+    
+       /* scroll to position */
+      /* perhaps a later improvement
+       $('html, body').animate({
+            scrollTop: $('a.handle[name="7"]').position().top
+       }, 2000);
+       */
+    });
+
+</script>
+
+<?php
+
 // Form action and url handling
 $request_url = set_page();
 
@@ -57,8 +239,15 @@ $content = 'This mask allows administrators to modify the data schema of the NCo
             Disregarding this may result in unexpected behavour of the application, failure to generate the Nagios configuration properly 
             and may under certain circumstances <b>result in data corruption or loss!</b>';
 
+$reorder_info =
+  '<div id="reorder_info" style="display: none">'
+    .NConf_HTML::show_highlight('Reordered List', 'The list order has changed, please save if you are finished moving items.'
+      .'<br><button id="reorder">Save reordering</button>'
+      .'<div id="reordered_info_feedback"></div>'
+    )
+ .'</div>';
 echo NConf_HTML::limit_space(
-    NConf_HTML::show_error('WARNING', $content)
+    NConf_HTML::show_error('WARNING', $content).$reorder_info
     , 'style="float: right; width: 555px;"'
 );
 
@@ -90,42 +279,58 @@ if ( isset($show_class_select) ){
 }
 
 
-    // submit button
-    echo '<tr>';
-    echo '<td align=right id=buttons>';
-
-/*
-    // Clear button
-    if ( isset($_SESSION["cache"]["searchfilter"]) ){
-        if ( strstr($_SERVER['REQUEST_URI'], ".php?") ){
-            $clear_url = $_SERVER['REQUEST_URI'].'&clear=1';
-        }else{
-            $clear_url = $_SERVER['REQUEST_URI'].'?clear=1';
-        }
-        echo '&nbsp;&nbsp;<input type="button" name="clear" value="Clear" onClick="window.location.href=\''.$clear_url.'\'">';
-    }
-*/
-
-    echo "</td>";
-echo "</tr>";
-
-
 echo '
 </table>
 </fieldset>';
 
-/*
-<div id="buttons">
-    <br>
-    <input type="submit" value="Show" name="submiter" align="middle">
-</div>
-
-*/
-
 echo '</form>';
 
-echo '<div class="clearer"></div>
-        <h2>&nbsp;Overview</h2>';
+$class_ID   = db_templates('get_id_of_class', $class);
+
+/* Create new tab */
+echo '
+  <div id="dialog" title="Add new tab">
+    <form id="tab_add">';
+        echo '<input type="hidden" name="class_id" value="'.$class_ID.'">';
+        echo '
+        <label for="tab_name">Title</label>
+        <input type="text" name="tab_name" id="tab_name" value="" class="span4 ui-widget-content ui-corner-all" /><span class="help-inline mark_as_mandatory">*</span>
+        <label for="tab_description">Description</label>
+        <textarea name="tab_description" id="tab_description" class="span4 ui-widget-content ui-corner-all"></textarea>
+        <label class="checkbox" for="tab_visible">Visible
+          <input type="checkbox" id="tab_visible" name="tab_visible" checked=checked>
+        </label>
+        <div id="modal_feedback_area" class="modal_feedback_area"></div>
+    </form>
+  </div>';
+
+/* Modify tab */
+echo '
+  <div id="modifydialog" title="Modify tab">
+    <form id="tab_update">';
+        echo '<input type="hidden" name="class_id" value="'.$class_ID.'">';
+        echo '
+        <label for="tab_name">Title</label>
+        <input type="text" name="tab_name" id="tab_name_update" value="" class="span4 ui-widget-content ui-corner-all" /><span class="help-inline mark_as_mandatory">*</span>
+        <label for="tab_description">Description</label>
+        <textarea name="tab_description" id="tab_description_update" class="span4 ui-widget-content ui-corner-all"></textarea>
+        <label class="checkbox" for="tab_visible">Visible
+          <input type="checkbox" id="tab_visible_update" name="tab_visible" checked=checked>
+        </label>
+        <input type="hidden" name="tab_id" id="tab_id" value="">
+        <input type="hidden" name="action" id="action" value="modify">
+        <div id="modify_modal_feedback_area" class="modal_feedback_area"></div>
+    </form>
+  </div>';
+  
+  
+  
+echo '<button id="add_tab">Add Tab</button>';
+  
+
+echo '<form id="reorder_form" action="#" method="get">';
+echo '<input type="hidden" name="class_id" value="'.$class_ID.'">';
+echo '<div class="clearer"></div>';
 
 
 
@@ -138,105 +343,153 @@ if ( !empty($_GET["do"]) AND !empty($_GET["id"]) ){
     }
         
 }
-
-
-    $query = 'SELECT ConfigAttrs.friendly_name, ConfigAttrs.ordering, id_attr, attr_name, datatype, mandatory, naming_attr
-            FROM ConfigAttrs,ConfigClasses
-                WHERE id_class=fk_id_class
-                AND config_class="'.$class.'"
-                ORDER BY ConfigAttrs.ordering
-    ';
-
-    $result = db_handler($query, "result", "get attributes from class");
+    
+    $result = db_templates('get_attributes_from_class_with_tab_info', $class_ID);
     
     // Table beginning will be added in the output function
-    $table  = '';
+    $table_header  = '';
+    $tabs_header   = '';
+    
 
     if ($result != "") {
 
-        $table .= '<thead class="ui-widget-header">';
-        $table .= '<tr>';
-            $table .= '<th width=30>&nbsp;</th>';
-            $table .= '<th width=170>Attribute Name</th>';
-            $table .= '<th width=170>Friendly Name</th>';
-            $table .= '<th width=100>Datatype</th>';
-            $table .= '<th width=70 class="center">Mandatory</th>';
-            $table .= '<th width=60 class="center">Ordering</th>';
-            $table .= '<th width=50 class="center">PK</th>';
-            $table .= '<th width=40 class="center">Edit</th>';
-            $table .= '<th width=40 class="center">Delete</th>';
+        // Create table header template, which is used for each tab
+        $table_header .= '<thead class="ui-widget-header">';
+        $table_header .= '<tr><th>';
+            $table_header .= '<div style="width:30px">&nbsp;</div>';
+            $table_header .= '<div style="width:170px">Attribute Name</div>';
+            $table_header .= '<div style="width:170px">Friendly Name</div>';
+            $table_header .= '<div style="width:100px">Datatype</div>';
+            $table_header .= '<div style="width:70px" class="center">Mandatory</div>';
+            $table_header .= '<div style="width:60px" class="center">Ordering</div>';
+            $table_header .= '<div style="width:50px" class="center">PK</div>';
+            $table_header .= '<div style="width:40px" class="center">Edit</div>';
+            $table_header .= '<div style="width:40px" class="center">Delete</div>';
 
-        $table .= "</tr>";
-        $table .= '</thead>';
+        $table_header .= "</th></tr>";
+        $table_header .= '</thead>';
 
-        $table .= '<tbody class="ui-widget-content">';
+        $table_header .= '<tbody class="ui-widget-content">';
 
 
         $count = 1;
         $naming_attr_count = 0;
+        
+        $last_tab_id = '';
         while($entry = mysql_fetch_assoc($result)){
-            $row_warn = 0;
-            if ($entry["naming_attr"] == "yes"){
-                $naming_attr_count++;
-                $pre = "<b>";
-                $fin = "</b>";
-                $naming_attr_cell = SHOW_ATTR_NAMING_ATTR;
-                if ($naming_attr_count > 1){
-                    $row_warn = 1;
-                    message($info, TXT_NAMING_ATTR_CONFLICT);
-                    $naming_attr_cell .= SHOW_ATTR_NAMING_ATTR_CONFLICT;
-                }
-				$additional_class = " color_nomon";
-            }else{
-                $pre = "";
-                $fin = "";
-                $naming_attr_cell = "";
-				$additional_class = "";
+          
+          $tab_disabled = ($entry["visible"] == "no" ) ? 'class="disabled"' : '';
+          // Check tabs!
+          if (!empty($entry["id_tab"]) ){
+            if (empty($last_tab_id)){
+              // create first tab if no tab was done yet
+              $tabs_header .= '<ul id="tabs_sortable"><li '.$tab_disabled.'>';
+              $tabs_header .= '<h3 class="ui-widget-header ui-corner-top fg_tab">';
+                $tabs_header .= '<a href="#" class="handle" name="'.$entry["id_tab"].'" title="Drag to re-order">'
+                    .'<div class="draggable"></div>'
+                    .'</a>';
+                $tabs_header .= '<span class="jQ_tooltip lighten tab_modify" title="Click to modify tab">';
+                $tabs_header .= !empty($entry["tab_name"]) ? $entry["tab_name"] : 'undefined';
+                $tabs_header .= '</span>';
+                //$tabs_header .= '<div id="ui-nconf-icon-bar">'.ICON_EDIT.'</div>';
+              $tabs_header .= '</h3>';
+              // remove button for later 
+              // $tabs_header .= '<span class="ui-icon ui-icon-close">Remove Tab</span>';
+              $tabs_header .= '<input type="hidden" name="tab_ordering[]" value="'.$entry["id_tab"].'">';
+              $tabs_header .= '<input type="hidden" name="ordering[][tab]" value="'.$entry["id_tab"].'">';
+              
+              $last_tab_id = $entry["id_tab"];
+            }elseif ( $last_tab_id != $entry["id_tab"]){
+              // create new tab if it differs from the previous attribute
+              $table .= '</tbody>';
+              $tab_content_table = NConf_HTML::ui_table($table_header . $table, 'ui-nconf-max-width sortable');
+              echo $tabs_header . $tab_content_table;
+              
+              $last_tab_id = $entry["id_tab"];
+              
+              // reset table
+              $table = '';
+              $tabs_header = '';
+              
+              // Create new tab
+              $tabs_header .= '</li><li '.$tab_disabled.'>';
+              $tabs_header .= '<h3 class="ui-widget-header ui-corner-top fg_tab">';
+                $tabs_header .= '<a href="#" class="handle" name="'.$entry["id_tab"].'" title="Drag to re-order">'
+                    .'<div class="draggable"></div>'
+                    .'</a>';
+                $tabs_header .= '<span class="jQ_tooltip lighten tab_modify" title="click to modify tab">';
+                $tabs_header .= !empty($entry["tab_name"]) ? $entry["tab_name"] : 'undefined';
+                $tabs_header .= '</span>';
+              $tabs_header .= '</h3>';
+              $tabs_header .= '<input type="hidden" name="tab_ordering[]" value="'.$entry["id_tab"].'">';
+              $tabs_header .= '<input type="hidden" name="ordering[][tab]" value="'.$entry["id_tab"].'">';
             }
+          }
+          
+          
+          $row_warn = 0;
+          if ($entry["naming_attr"] == "yes"){
+            $naming_attr_count++;
+            $pre = "<b>";
+            $fin = "</b>";
+            $naming_attr_cell = SHOW_ATTR_NAMING_ATTR;
+            if ($naming_attr_count > 1){
+                $row_warn = 1;
+                message($info, TXT_NAMING_ATTR_CONFLICT);
+                $naming_attr_cell .= SHOW_ATTR_NAMING_ATTR_CONFLICT;
+            }
+			      $additional_class = " color_nomon";
+          }else{
+            $pre = "";
+            $fin = "";
+            $naming_attr_cell = "&nbsp;";
+				    $additional_class = "";
+          }
 
-            // Show datatype icons 
-            switch ($entry["datatype"]){
-                case "text":
-                    $ICON_datatype = SHOW_ATTR_TEXT;
-                break;
-                case "password":
-                    $ICON_datatype = SHOW_ATTR_PASSWORD;
-                break;
-                case "select":
-                    $ICON_datatype = SHOW_ATTR_SELECT;
-                break;
-                case "assign_one":
-                    $ICON_datatype = SHOW_ATTR_ASSIGN_ONE;
-                break;
-                case "assign_many":
-                    $ICON_datatype = SHOW_ATTR_ASSIGN_MANY;
-                break;
-				case "assign_cust_order":
+          // Show datatype icons 
+          switch ($entry["datatype"]){
+            case "text":
+                $ICON_datatype = SHOW_ATTR_TEXT;
+            break;
+            case "password":
+                $ICON_datatype = SHOW_ATTR_PASSWORD;
+            break;
+            case "select":
+                $ICON_datatype = SHOW_ATTR_SELECT;
+            break;
+            case "assign_one":
+                $ICON_datatype = SHOW_ATTR_ASSIGN_ONE;
+            break;
+            case "assign_many":
+                $ICON_datatype = SHOW_ATTR_ASSIGN_MANY;
+            break;
+				  case "assign_cust_order":
                     $ICON_datatype = SHOW_ATTR_ASSIGN_CUST_ORDER;
-				break;
-				default:
-					$ICON_datatype = '';
-				break;
-            }
+  				break;
+  				default:
+  					$ICON_datatype = '';
+  				break;
+              }
+  
+          // Show mandatory icons 
+          switch ($entry["mandatory"]){
+              case "yes":
+                  $ICON_mandatory = ICON_TRUE_RED;
+              break;
+              case "no":
+              default:
+                  $ICON_mandatory = ICON_FALSE_SMALL;
+              break;
+          }
+  			
+    			// highlight moved row
+    			if ( !empty($_GET["do"]) AND !empty($_GET["id"]) ){
+    				if ( $entry["id_attr"] == $_GET["id"]){
+    					$additional_class .= " ui-state-highlight";
+    				}
+    			}
 
-            // Show mandatory icons 
-            switch ($entry["mandatory"]){
-                case "yes":
-                    $ICON_mandatory = ICON_TRUE_RED;
-                break;
-                case "no":
-                default:
-                    $ICON_mandatory = ICON_FALSE_SMALL;
-                break;
-            }
-			
-			// highlight moved row
-			if ( !empty($_GET["do"]) AND !empty($_GET["id"]) ){
-				if ( $entry["id_attr"] == $_GET["id"]){
-					$additional_class .= " ui-state-highlight";
-				}
-			}
-
+          if ( !empty($entry["id_attr"]) ){
 
             // set list color
             if ($row_warn == 1){
@@ -246,44 +499,56 @@ if ( !empty($_GET["do"]) AND !empty($_GET["id"]) ){
             }else{
                 $table .= '<tr class="color_list2 highlight '.$additional_class.'">';
             }
-
-
             
-            $table .= '<td>'.$ICON_datatype.'</td>';
+            $table .= '<td>';
+                $table .= '<div style="width:30px">'.$ICON_datatype.'</div>';
+                $table .= '<div style="width:170px" class="table_text">'.$pre.'<a href="detail_admin_items.php?type=attr&class='.$class.'&id='.$entry["id_attr"].'">'.$entry["attr_name"].'</a>'.$fin.'</div>';
+                $table .= '<div style="width:170px" class="table_text">'.$pre.$entry["friendly_name"].$fin.'</div>';
+                $table .= '<div style="width:100px" class="table_text">'.$pre.$entry["datatype"].$fin.'</div>';
+                $table .= '<div style="width:70px" align="center"><div align=center>'.$ICON_mandatory.'</div></div>';
+                // Ordering is good for debbuging
+                //$table .= '<div>'.$pre.$entry["ordering"].$fin.'</div>';
+                $table .= '<div style="width: 60px" class="center table_icon">
+                            <div class="handle center">
+                              <span class="ui-icon handle ui-icon-arrowthick-2-n-s" style="margin: 0 auto"></span>
+                              <input type="hidden" name="ordering[]" value="'.$entry["id_attr"].'">
+                              </div>
+                            </div>';
+                $table .= '</div>';
+                $table .= '<div style="width:50px" class="center">'.$naming_attr_cell.'</div>';
+                $table .= '<div style="width:40px" class="center table_icon"><a href="modify_attr.php?id='.$entry["id_attr"].'">'.ICON_EDIT.'</a></div>';
+                $table .= '<div style="width:40px" class="center table_icon"><a href="delete_attr.php?id='.$entry["id_attr"].'">'.ICON_DELETE.'</a></div>';
+            $table .= "</td></tr>\n";
+          }
 
-            $table .= '<td>'.$pre.'<a href="detail_admin_items.php?type=attr&class='.$class.'&id='.$entry["id_attr"].'">'.$entry["attr_name"].'</a>'.$fin.'</td>';
-            $table .= '<td>'.$pre.$entry["friendly_name"].$fin.'</td>';
-            $table .= '<td>'.$pre.$entry["datatype"].$fin.'</td>';
-            $table .= '<td align="center"><div align=center>'.$ICON_mandatory.'</div></td>';
-            // Ordering is good for debbuging
-            //$table .= '<td>'.$pre.$entry["ordering"].$fin.'</td>';
-            $table .= '<td class="center">'.$pre;
-                $table .= '<a href="show_attr.php?class='.$class.'&id='.$entry["id_attr"].'&do=up">'.ICON_UP_BOX_BLUE.'</a>';
-                $table .= '&nbsp;';
-                $table .= '<a href="show_attr.php?class='.$class.'&id='.$entry["id_attr"].'&do=down">'.ICON_DOWN_BOX_BLUE.'</a>';
-            $table .= $fin.'</td>';
-            $table .= '</td>';
-            $table .= '<td align="center"><div align=center>'.$naming_attr_cell.'</div></td>';
-            $table .= '<td style="text-align:center"><a href="modify_attr.php?id='.$entry["id_attr"].'">'.ICON_EDIT.'</a></td>';
-            $table .= '<td style="text-align:center"><a href="delete_attr.php?id='.$entry["id_attr"].'">'.ICON_DELETE.'</a></td>';
-            $table .= "</tr>\n";
-
-            $count++;
-        }
+          $count++;
+          
+          
+          
+        } // END of while
         
         // Warn if there is no naming attribute
         if ($naming_attr_count == 0){
             message($info, TXT_NAMING_ATTR_MISSED);
         }
 
-    }
+        // Close last table
+        $table .= '</tbody>';
+        
+        // print last tab with last table
+        echo $tabs_header;
+        echo NConf_HTML::ui_table($table_header . $table, 'ui-nconf-max-width sortable');
+        echo '</li>';
+        echo '</ul>';
+        
+        
+    } // End of if results != ''
 
-$table .= '</tbody>';
 
 
-echo NConf_HTML::ui_table($table, 'ui-nconf-max-width');
 
 
+echo '</form>';
 
 mysql_close($dbh);
 require_once 'include/foot.php';

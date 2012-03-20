@@ -598,28 +598,52 @@ something for later use... other query for link_as_child attrs....
             # this is the new template to get ALL attributes, including the bidirectional ones
             # this template could also be used to get informations about ONE attribute (used on multimodify)
             #   for this the $search must be given
+            
+            # first check if there are tabs
+            $class_has_tabs = db_templates('class_has_tabs', $value);
+            
             $query = 'SELECT ConfigAttrs.id_attr,
-                                 ConfigAttrs.attr_name,
-                                 ConfigAttrs.friendly_name,
-                                 ConfigAttrs.datatype,
-                                 ConfigAttrs.max_length,
-                                 ConfigAttrs.poss_values,
-                                 ConfigAttrs.predef_value,
-                                 ConfigAttrs.mandatory,
-                                 ConfigAttrs.naming_attr,
-                                 ConfigAttrs.ordering,
-                                 ConfigAttrs.visible,
-                                 ConfigAttrs.fk_id_class,
-                                 ConfigAttrs.fk_show_class_items,
-                                 ConfigAttrs.description,
-                                 ConfigAttrs.link_bidirectional
-                          FROM ConfigAttrs,ConfigClasses
-                          WHERE id_class=fk_id_class
-                              AND ConfigClasses.config_class="'.$value.'"
+                             ConfigAttrs.attr_name,
+                             ConfigAttrs.friendly_name,
+                             ConfigAttrs.datatype,
+                             ConfigAttrs.max_length,
+                             ConfigAttrs.poss_values,
+                             ConfigAttrs.predef_value,
+                             ConfigAttrs.mandatory,
+                             ConfigAttrs.naming_attr,
+                             ConfigAttrs.ordering,
+                             ConfigAttrs.visible,
+                             ConfigAttrs.fk_id_class,
+                             ConfigAttrs.fk_show_class_items,
+                             ConfigAttrs.description,
+                             ConfigAttrs.link_bidirectional';
+                             
+            if ($class_has_tabs){
+                $query .= ',ConfigTabs.id_tab
+                           ,ConfigTabs.tab_name
+                                FROM ConfigAttrs, ConfigTabs
+                                WHERE ConfigAttrs.fk_id_tab = ConfigTabs.id_tab
+                                AND ConfigAttrs.fk_id_class="'.$value.'"
+                                  AND ConfigAttrs.visible="yes"';
+                if (!empty($filter)){
+                  $query .= ' AND ConfigTabs.visible = "yes"';
+                }
+            }else{
+                $query .= ' FROM ConfigAttrs
+                          WHERE fk_id_class="'.$value.'"
                               AND ConfigAttrs.visible="yes"';
-                # if search is given, limit result to selected attr (needed on multy modify)
-                if ( !empty($search) ) $query .= ' AND ConfigAttrs.attr_name="'.$search.'"';
+            }
+
+            # if search is given, limit result to selected attr (needed on multi modify)
+            if ( !empty($search) ) $query .= ' AND ConfigAttrs.attr_name="'.$search.'"';
+            
+            # ordering
+            if ($class_has_tabs){
+                $query .= ' ORDER BY ConfigTabs.ordering, ConfigAttrs.ordering';
+            }else{
                 $query .= ' ORDER BY ordering';
+            }
+
             if ( !empty($search) ){
                 # got one attribute
                 $output = db_handler($query, 'array', 'get details of attribute (part 1): "'.$search.'"');
@@ -645,23 +669,24 @@ something for later use... other query for link_as_child attrs....
 
             # query for bidirectional entries from other classes
             $query = 'SELECT ConfigAttrs.id_attr,
-                                 ConfigAttrs.attr_name,
-                                 ConfigAttrs.friendly_name,
-                                 ConfigAttrs.datatype,
-                                 ConfigAttrs.max_length,
-                                 ConfigAttrs.poss_values,
-                                 ConfigAttrs.predef_value,
-                                 ConfigAttrs.mandatory,
-                                 ConfigAttrs.naming_attr,
-                                 ConfigAttrs.ordering,
-                                 ConfigAttrs.visible,
-                                 ConfigAttrs.fk_id_class,
-                                 ConfigAttrs.fk_id_class AS fk_show_class_items,
-                                 ConfigAttrs.description,
-                                 ConfigAttrs.link_bidirectional
-                          FROM ConfigAttrs,ConfigClasses
-                          WHERE id_class=fk_show_class_items 
-                              AND ConfigClasses.config_class="'.$value.'"
+                             ConfigAttrs.attr_name,
+                             ConfigAttrs.friendly_name,
+                             ConfigAttrs.datatype,
+                             ConfigAttrs.max_length,
+                             ConfigAttrs.poss_values,
+                             ConfigAttrs.predef_value,
+                             ConfigAttrs.mandatory,
+                             ConfigAttrs.naming_attr,
+                             ConfigAttrs.ordering,
+                             ConfigAttrs.visible,
+                             ConfigAttrs.fk_id_class,
+                             ConfigAttrs.fk_id_class AS fk_show_class_items,
+                             ConfigAttrs.description,
+                             ConfigAttrs.link_bidirectional,
+                             "bidirectional" AS id_tab,
+                             "'.TXT_BIDIRECTIONAL_TAB.'" AS tab_name
+                          FROM ConfigAttrs
+                          WHERE fk_show_class_items ="'.$value.'"
                               AND ConfigAttrs.visible="yes"
                               AND ConfigAttrs.link_bidirectional="yes"';
                 # if search is given, limit result to selected attr (needed on multy modify)
@@ -973,6 +998,73 @@ something for later use... other query for link_as_child attrs....
                 $output =  escape_string($default_params);
             }
             break;
+        
+        case "class_has_tabs":
+            $query = 'SELECT ConfigTabs.id_tab, ConfigTabs.tab_name
+                        FROM ConfigTabs
+                        WHERE fk_id_class = "'.$value.'"
+                        ORDER BY ordering';
+            $output = db_handler($query, 'num_rows', "check if this config class has tabs");
+            break;
+        case "load_tab_info":
+            $query = 'SELECT *
+                        FROM ConfigTabs
+                        WHERE id_tab = "'.$value.'"
+                        LIMIT 1';
+            $output = db_handler($query, 'assoc', "load tab info");
+            break;
+        case "get_attributes_from_class_with_tab_info":
+            if ( empty($output_type) ) $output_type = 'result';
+          
+            $class_has_tabs = db_templates('class_has_tabs', $value);            
+            if (!$class_has_tabs){
+              $query = 'SELECT ConfigAttrs.friendly_name, ConfigAttrs.ordering, id_attr, attr_name, datatype, mandatory, naming_attr
+              FROM ConfigAttrs
+                WHERE ConfigAttrs.fk_id_class = "'.$value.'"
+              ORDER BY ConfigAttrs.ordering';
+              
+              $output = db_handler($query, $output_type, "get attributes from class without tabs");
+            }else{
+                // check if search is given to filter the list more
+                if (!empty($search)){
+                  $query = "SELECT  ConfigAttrs.friendly_name,
+                                    ConfigAttrs.ordering,
+                                    ConfigAttrs.id_attr,
+                                    ConfigAttrs.attr_name,
+                                    ConfigAttrs.datatype,
+                                    ConfigAttrs.mandatory,
+                                    ConfigAttrs.naming_attr,
+                                    ConfigTabs.id_tab,
+                                    ConfigTabs.tab_name "
+                            . "FROM ConfigTabs RIGHT JOIN ConfigAttrs "
+                            . "ON ConfigTabs.id_tab = ConfigAttrs.fk_id_tab "
+                            . 'WHERE ConfigTabs.fk_id_class = "'.$value.'" ';
+                }else{
+                  $query = "SELECT  ConfigAttrs.friendly_name,
+                                    ConfigAttrs.ordering,
+                                    ConfigAttrs.id_attr,
+                                    ConfigAttrs.attr_name,
+                                    ConfigAttrs.datatype,
+                                    ConfigAttrs.mandatory,
+                                    ConfigAttrs.naming_attr,
+                                    ConfigTabs.id_tab,
+                                    ConfigTabs.tab_name,
+                                    ConfigTabs.visible "
+                            . "FROM ConfigTabs LEFT JOIN ConfigAttrs "
+                            . "ON ConfigTabs.id_tab = ConfigAttrs.fk_id_tab "
+                            . 'WHERE ConfigTabs.fk_id_class = "'.$value.'" ';
+                }
+                if (!empty($filter)){
+                  $query .= ' AND ConfigTabs.visible = "yes"';
+                }
+                $query .= " ORDER BY ConfigTabs.ordering, ConfigAttrs.ordering";
+                $output = db_handler($query, $output_type, "get attributes from class with tab settings");
+            }
+            
+            break;
+    
+    
+    
             
 
     }
