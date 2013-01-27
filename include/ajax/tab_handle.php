@@ -117,6 +117,14 @@ if ( !empty($_POST["tab_name"]) ){
       NConf_DEBUG::set("Could not delete tab $name", 'ERROR', "Failed");
     }
   }
+
+}elseif ( $action == "deletealltabs" AND !empty($class_ID) ){
+  // deletealltabs & tab ID exists, remove all tabs
+  $tab_delete_query = 'DELETE FROM ConfigTabs '
+                      .'WHERE fk_id_class = "'.$class_ID.'"';
+  if (!db_handler($tab_delete_query, "insert", "Removing all tabs on class $class_ID") ){
+    NConf_DEBUG::set("Could not delete all tabs", 'ERROR', "Failed");
+  }
   
 }else{
   NConf_DEBUG::set("Missing tab title", 'ERROR', "Error");

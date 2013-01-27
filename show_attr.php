@@ -107,6 +107,29 @@ require_once 'include/head.php';
             $( ".modal_feedback_area", $modifyDialog ).empty();
           }
         });
+        // Delete all tabs
+        var $removetabsdialog = $( "#removedialog" ).dialog({
+          autoOpen: false,
+          title: 'Remove all Tabs',
+          modal: true,
+          width: "350",
+          buttons: {
+            Confirm: function() {
+              handleTab( $("#tabs_delete").serialize() );
+            },
+            Cancel: function() {
+              $( this ).dialog( "close" );
+            }
+          },
+          open: function() {
+            //tab_title_input.focus();
+          },
+          close: function(test) {
+            var Form = $( "form", $dialog );
+            $( "form", $dialog )[0].reset();
+            $( ".remove_modal_feedback_area", $dialog ).empty();
+          }
+        });
         
         /* prevent sending form with ENTER */
         $("form").submit(function() {
@@ -139,6 +162,13 @@ require_once 'include/head.php';
           .button()
           .click(function() {
             $dialog.dialog( "open" );
+          });
+          
+        /* REMOVE ALL TABS */
+        $( "#remove_all_tabs" )
+          .button()
+          .click(function() {
+            $removetabsdialog.dialog( "open" );
           });
         
         /* TAB MODIFY */
@@ -322,10 +352,20 @@ echo '
         <div id="modify_modal_feedback_area" class="modal_feedback_area"></div>
     </form>
   </div>';
+/* Delete all tabs */
+echo '
+  <div id="removedialog" title="Remove all tabs">
+    <form id="tabs_delete">';
+        echo 'Are you sure you want to remove all tabs?<br>The attributes will NOT be removed.';
+        echo '<input type="hidden" name="class_id" value="'.$class_ID.'">';
+        echo '<input type="hidden" name="action" id="action" value="deletealltabs">
+        <div id="delete_modal_feedback_area" class="modal_feedback_area"></div>
+    </form>
+  </div>';  
   
-  
-  
+echo '<br>';  
 echo '<button id="add_tab">Add Tab</button>';
+echo '<button id="remove_all_tabs">Remove all Tabs</button>';
   
 
 echo '<form id="reorder_form" action="#" method="get">';
